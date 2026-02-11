@@ -3,22 +3,125 @@
 import { Observable } from 'rxjs'
 import invariant from 'tiny-invariant'
 
+class WebAudioNoiseSuppressor {
+    private audioContext: AudioContext;
+    private source: MediaStreamAudioSourceNode | null = null;
+    private compressor: DynamicsCompressorNode | null = null;
+    private filter: BiquadFilterNode | null = null;
+    private destination: MediaStreamAudioDestinationNode | null = null;
+    
+    private enabled = true;
+    private level = 0.7;
+
+    constructor() {
+        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+
+    async apply(stream: MediaStream): Promise<MediaStream> {
+        if (!this.enabled || !stream.getAudioTracks().length) {
+            return stream;
+        }
+
+        try {
+            this.source = this.audioContext.createMediaStreamSource(stream);
+            this.filter = this.audioContext.createBiquadFilter();
+            this.compressor = this.audioContext.createDynamicsCompressor();
+            this.destination = this.audioContext.createMediaStreamDestination();
+            
+            this.filter.type = 'highpass';
+            this.filter.frequency.value = 100;
+            this.updateCompressor();
+            
+            this.source.connect(this.filter);
+            this.filter.connect(this.compressor);
+            this.compressor.connect(this.destination);
+            
+            const processedAudio = this.destination.stream.getAudioTracks()[0];
+            const videoTracks = stream.getVideoTracks();
+            
+            return new MediaStream([processedAudio, ...videoTracks]);
+
+        } catch (error) {
+            console.warn('Noise suppression failed:', error);
+            return stream;
+        }
+    }
+
+    updateSettings(enabled: boolean, level: number): void {
+        this.enabled = enabled;
+        this.level = Math.max(0, Math.min(1, level));
+        this.updateCompressor();
+    }
+
+    private updateCompressor(): void {
+        if (!this.compressor) return;
+        this.compressor.threshold.value = -50 * this.level;
+        this.compressor.knee.value = 30 + (10 * this.level);
+        this.compressor.ratio.value = 5 + (7 * this.level);
+        this.compressor.attack.value = 0.005;
+        this.compressor.release.value = 0.200;
+    }
+
+    dispose(): void {
+        this.source?.disconnect();
+        this.filter?.disconnect();
+        this.compressor?.disconnect();
+        if (this.audioContext.state !== 'closed') {
+            this.audioContext.close();
+        }
+    }
+}
+
+let suppressorInstance: WebAudioNoiseSuppressor | null = null
+let currentLevel: number = 0.7 
+let currentEnabled: boolean = true
+
 export default function noiseSuppression(
 	originalAudioStreamTrack: MediaStreamTrack
 ): Observable<MediaStreamTrack> {
 	return new Observable<MediaStreamTrack>((subscriber) => {
 		const mediaStream = new MediaStream()
 		mediaStream.addTrack(originalAudioStreamTrack)
-		const suppressor = new NoiseSuppressionEffect()
-		const output = suppressor.startEffect(mediaStream)
-		const noiseSuppressedTrack = output.getAudioTracks()[0]
-		subscriber.add(() => {
-			suppressor.stopEffect()
+		
+		if (!suppressorInstance) {
+			suppressorInstance = new WebAudioNoiseSuppressor()
+		}
+		suppressorInstance.updateSettings(currentEnabled, currentLevel)
+		
+		suppressorInstance.apply(mediaStream).then((outputStream) => {
+			const noiseSuppressedTrack = outputStream.getAudioTracks()[0]
+			subscriber.add(() => {
+				suppressorInstance?.dispose()
+			})
+			subscriber.next(noiseSuppressedTrack)
+		}).catch((error) => {
+			console.error('Noise suppression failed:', error)
+			subscriber.next(originalAudioStreamTrack) // Fallback
 		})
-		subscriber.next(noiseSuppressedTrack)
 	})
 }
 
+export function updateNoiseSuppressionLevel(level: number): void {
+	currentLevel = Math.max(0.1, Math.min(1.0, level))
+	if (suppressorInstance) {
+	  suppressorInstance.updateSettings(currentEnabled, currentLevel)
+	}
+  }
+  
+  export function updateNoiseSuppressionEnabled(enabled: boolean): void {
+	currentEnabled = enabled
+	if (suppressorInstance) {
+	  suppressorInstance.updateSettings(currentEnabled, currentLevel)
+	}
+  }
+  
+  export function getCurrentNoiseSuppressionLevel(): number {
+	return currentLevel
+  }
+  
+  export function isNoiseSuppressionEnabled(): boolean {
+	return currentEnabled
+  }
 /**
  * Effect applies rnnoise denoising on a audio MediaStreamTrack.
  */

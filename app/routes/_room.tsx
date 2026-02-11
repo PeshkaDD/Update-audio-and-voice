@@ -130,6 +130,8 @@ function Room({ room, userMedia }: RoomProps) {
 	const [audioOnlyMode, setAudioOnlyMode] = useState(false)
 	const { roomName } = useParams()
 	invariant(roomName)
+	const [noiseSuppressionLevel, setNoiseSuppressionLevel] = useState(0.7)
+  
 
 	const {
 		userDirectoryUrl,
@@ -239,6 +241,8 @@ function Room({ room, userMedia }: RoomProps) {
 		setDataSaverMode,
 		audioOnlyMode,
 		setAudioOnlyMode,
+		noiseSuppressionLevel,
+		setNoiseSuppressionLevel,
 		traceLink,
 		userMedia,
 		userDirectoryUrl,

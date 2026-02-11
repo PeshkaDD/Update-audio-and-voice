@@ -1,4 +1,5 @@
 import type { FC, ReactNode } from 'react'
+import { useState, useEffect } from 'react'
 import { useRoomContext } from '~/hooks/useRoomContext'
 import { AudioInputSelector } from './AudioInputSelector'
 import { Button } from './Button'
@@ -42,8 +43,21 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 	children,
 }) => {
 	const {
-		userMedia: { blurVideo, setBlurVideo, suppressNoise, setSuppressNoise },
+		userMedia: { 
+			blurVideo, 
+			setBlurVideo, 
+			suppressNoise, 
+			setSuppressNoise, 
+		},
+		noiseSuppressionLevel = 0.7, 
+		setNoiseSuppressionLevel 
 	} = useRoomContext()
+	
+	const [localLevel, setLocalLevel] = useState(noiseSuppressionLevel)
+
+	useEffect(() => {
+		setLocalLevel(noiseSuppressionLevel)
+	}, [noiseSuppressionLevel])
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -93,6 +107,45 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 								onCheckedChange={setSuppressNoise}
 							/>
 						</div>
+						
+						{}
+						{suppressNoise && (
+							<>
+								{}
+								<div></div>
+								<div className="ml-2 pl-4 border-l-2 border-blue-500/30 space-y-4">
+									<div className="space-y-2">
+										<div className="flex justify-between items-center">
+											<Label htmlFor="noiseLevel" className="text-sm">
+												Suppression Strength
+											</Label>
+											<span className="text-xs font-mono">
+												{Math.round(localLevel * 100)}%
+											</span>
+										</div>
+										{}
+										<input
+											type="range"
+											id="noiseLevel"
+											min="0.1"
+											max="1"
+											step="0.1"
+											value={localLevel}
+											onChange={(e) => setLocalLevel(parseFloat(e.target.value))}
+											onMouseUp={() => setNoiseSuppressionLevel(localLevel)}
+											onTouchEnd={() => setNoiseSuppressionLevel(localLevel)}
+											className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+										/>
+										<div className="flex justify-between text-xs text-gray-500">
+											<span>Light</span>
+											<span>Medium</span>
+											<span>Strong</span>
+										</div>
+									</div>
+								</div>
+							</>
+						)}
+						{}
 					</div>
 				</DialogContent>
 			</Portal>

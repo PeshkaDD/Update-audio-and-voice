@@ -32,6 +32,8 @@ export type RoomContextType = {
 		audio?: string
 		screenshare?: string
 	}
+	noiseSuppressionLevel: number
+	setNoiseSuppressionLevel: Dispatch<SetStateAction<number>>
 }
 
 export function useRoomContext() {
