@@ -6,6 +6,9 @@ import type useRoom from './useRoom'
 import type { useRoomHistory } from './useRoomHistory'
 
 export type RoomContextType = {
+	videoUnavailableReason: string | null
+	videoDeviceId: string
+	setVideoDeviceId: (deviceId: string) => void
 	traceLink?: string
 	feedbackEnabled: boolean
 	userDirectoryUrl?: string
