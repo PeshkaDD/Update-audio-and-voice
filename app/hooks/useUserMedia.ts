@@ -2,7 +2,6 @@ import { getCamera, getMic, getScreenshare } from 'partytracks/client'
 import { useObservable, useObservableAsValue } from 'partytracks/react'
 import { useCallback, useEffect, useState } from 'react'
 import { useLocalStorage } from 'react-use'
-import blurVideoTrack from '~/utils/blurVideoTrack'
 import { mode } from '~/utils/mode'
 import noiseSuppression from '~/utils/noiseSuppression'
 
@@ -42,17 +41,9 @@ function useNoiseSuppression() {
 }
 
 function useBlurVideo() {
-	const [blurVideo, setBlurVideo] = useLocalStorage('blur-video', false)
-	useEffect(() => {
-		if (blurVideo) camera.addTransform(blurVideoTrack)
-		return () => {
-			camera.removeTransform(blurVideoTrack)
-		}
-	}, [blurVideo])
-
-	return [blurVideo, setBlurVideo] as const
-}
-
+	const [blurVideo, setBlurVideo] = useLocalStorage('blur-video', false);
+	return [blurVideo, setBlurVideo] as const;
+  }
 function useScreenshare() {
 	const screenShareIsBroadcasting = useObservableAsValue(
 		screenshare.video.isBroadcasting$,
@@ -137,7 +128,8 @@ export default function useUserMedia(options: {
 		setVideoUnavailableReason(reason)
 		camera.stopBroadcasting()
 	})
-
+	const videoStreamTrack = useObservableAsValue(camera.broadcastTrack$);
+	console.log('🎥 useUserMedia videoStreamTrack:', videoStreamTrack);
 	return {
 		turnMicOn: mic.startBroadcasting,
 		turnMicOff: mic.stopBroadcasting,
@@ -167,8 +159,7 @@ export default function useUserMedia(options: {
 		suppressNoise,
 		setSuppressNoise,
 		videoTrack$: camera.broadcastTrack$,
-		videoStreamTrack: useObservableAsValue(camera.broadcastTrack$),
-
+		videoStreamTrack,
 		startScreenShare,
 		endScreenShare,
 		screenShareVideoTrack,
@@ -176,5 +167,4 @@ export default function useUserMedia(options: {
 		screenShareVideoTrack$,
 	}
 }
-
 export type UserMedia = ReturnType<typeof useUserMedia>
